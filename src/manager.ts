@@ -1,14 +1,18 @@
 import { ClaudeSession } from './session';
 
+export interface SessionOptions {
+  autoLaunchClaude?: boolean;
+}
+
 export class SessionManager {
   private sessions: Map<string, ClaudeSession> = new Map();
   private sessionMetadata: Map<string, { startTime: number }> = new Map();
 
-  createSession(id: string): ClaudeSession {
+  createSession(id: string, options: SessionOptions = { autoLaunchClaude: true }): ClaudeSession {
     if (this.sessions.has(id)) {
       return this.sessions.get(id)!;
     }
-    const session = new ClaudeSession(id);
+    const session = new ClaudeSession(id, options);
     this.sessions.set(id, session);
     this.sessionMetadata.set(id, { startTime: Date.now() });
     

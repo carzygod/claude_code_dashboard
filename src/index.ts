@@ -20,10 +20,13 @@ const wss = new WebSocketServer({ server });
 wss.on('connection', (ws, req) => {
     const urlParams = new URLSearchParams(req.url?.split('?')[1]);
     const sessionId = urlParams.get('sessionId') || 'default';
+    const skipClaude = urlParams.get('skipClaude');
 
-    console.log(`Client connected to session: ${sessionId}`);
+    console.log(`Client connected to session: ${sessionId} (skipClaude=${skipClaude})`);
 
-    const session = sessionManager.createSession(sessionId);
+    const session = sessionManager.createSession(sessionId, {
+        autoLaunchClaude: skipClaude !== '1',
+    });
     session.attach(ws);
 
     ws.on('error', console.error);
@@ -43,7 +46,8 @@ app.get('/api/sessions', (req, res) => {
 // API to create a new session
 app.post('/api/sessions', (req, res) => {
     const sessionId = req.body.id || `session-${Date.now()}`;
-    sessionManager.createSession(sessionId);
+    const autoLaunchClaude = req.body?.autoLaunchClaude !== false;
+    sessionManager.createSession(sessionId, { autoLaunchClaude });
     res.json({ id: sessionId, status: 'created' });
 });
 

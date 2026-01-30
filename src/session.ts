@@ -11,7 +11,10 @@ export class ClaudeSession extends EventEmitter {
     private ws: WebSocket | null = null;
     private history: string = '';
 
-    constructor(id: string) {
+    constructor(
+        id: string,
+        private readonly options: { autoLaunchClaude?: boolean } = { autoLaunchClaude: true }
+    ) {
         super();
         this.id = id;
 
@@ -57,8 +60,10 @@ export class ClaudeSession extends EventEmitter {
         // However, the user request says "using js/ts build a service... to use this device as claude code server".
         // So we likely want to just drop them into the claude CLI.
 
-        // Let's try running 'claude' immediately upon start.
-        this.ptyProcess.write('claude\r');
+        if (this.options.autoLaunchClaude !== false) {
+            // Let's try running 'claude' immediately upon start.
+            this.ptyProcess.write('claude\r');
+        }
     }
 
     public attach(ws: WebSocket) {
