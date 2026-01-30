@@ -1,4 +1,3 @@
-```typescript
 import { ClaudeSession } from './session';
 
 export class SessionManager {
@@ -43,4 +42,3 @@ export class SessionManager {
 }
 
 export const sessionManager = new SessionManager();
-```
