@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Code Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts for premium typography -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Glassmorphism Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Claude Server</h2>
+                <button id="new-session-btn" class="btn-primary">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    New Session
+                </button>
+            </div>
+
+            <div class="session-list" id="session-list">
+                <!-- Session items will be injected here -->
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="dot connected"></span>
+                    <span id="connection-status">Connected</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="active-session-info">
+                    <h3 id="current-session-title">Select a Session</h3>
+                    <span class="session-badge">ACTIVE</span>
+                </div>
+                <div class="actions">
+                    <button id="delete-session-btn" class="btn-danger" style="display: none;">Terminate</button>
+                </div>
+            </header>
+
+            <div class="terminal-wrapper">
+                <div id="terminal-container"></div>
+                <div id="empty-state" class="empty-state">
+                    <div class="empty-content">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1">
+                            <path d="M4 17l6-6-6-6M12 19h8" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <p>Select or create a session to start coding</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
