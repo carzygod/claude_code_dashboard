@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import cors from 'cors';
 import { sessionManager } from './manager';
+import { getSettings, updateSettings } from './config';
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -51,6 +52,20 @@ app.delete('/api/sessions/:id', (req, res) => {
     const { id } = req.params;
     sessionManager.removeSession(id);
     res.json({ status: 'deleted', id });
+});
+
+app.get('/api/settings', (req, res) => {
+    res.json(getSettings());
+});
+
+app.post('/api/settings', (req, res) => {
+    try {
+        const updated = updateSettings(req.body);
+        res.json(updated);
+    } catch (error) {
+        console.error('Failed to update settings', error);
+        res.status(500).json({ error: 'Failed to update settings' });
+    }
 });
 
 server.listen(port, () => {

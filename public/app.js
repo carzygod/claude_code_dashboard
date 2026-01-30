@@ -35,6 +35,21 @@ const deleteSessionBtn = document.getElementById('delete-session-btn');
 const connectionStatus = document.getElementById('connection-status');
 const statusDot = document.querySelector('.status-indicator .dot');
 const sessionBadge = document.querySelector('.session-badge');
+const settingsBtn = document.getElementById('settings-btn');
+const settingsPanel = document.getElementById('settings-panel');
+const settingsBackdrop = document.getElementById('settings-backdrop');
+const closeSettingsBtn = document.getElementById('close-settings-btn');
+const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
+const settingsForm = document.getElementById('settings-form');
+const settingsStatus = document.getElementById('settings-status');
+const settingFields = [
+    'ANTHROPIC_BASE_URL',
+    'ANTHROPIC_AUTH_TOKEN',
+    'ANTHROPIC_MODEL',
+    'ANTHROPIC_SMALL_FAST_MODEL',
+    'API_TIMEOUT_MS',
+    'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+];
 
 // Initialize Terminal
 // We only open the terminal when a session is active
@@ -177,6 +192,77 @@ function activateSession(sessionId) {
     });
 }
 
+function toggleSettingsPanel(show) {
+    if (!settingsPanel) return;
+    settingsPanel.classList.toggle('visible', show);
+    settingsPanel.setAttribute('aria-hidden', show ? 'false' : 'true');
+    if (!show && settingsStatus) {
+        settingsStatus.textContent = '';
+        settingsStatus.classList.remove('error');
+    }
+}
+
+function setSettingsStatus(message, isError = false) {
+    if (!settingsStatus) return;
+    settingsStatus.textContent = message;
+    settingsStatus.classList.toggle('error', isError);
+}
+
+function populateSettings(values) {
+    if (!settingsForm) return;
+    settingFields.forEach((field) => {
+        const input = settingsForm.elements.namedItem(field);
+        if (input instanceof HTMLInputElement) {
+            input.value = values[field] ?? '';
+        }
+    });
+}
+
+async function loadSettings() {
+    try {
+        const res = await fetch('/api/settings');
+        if (!res.ok) {
+            throw new Error('Failed to load settings');
+        }
+        const data = await res.json();
+        populateSettings(data);
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function submitSettings(event) {
+    event.preventDefault();
+    if (!settingsForm) return;
+    const payload = {};
+    settingFields.forEach((field) => {
+        const input = settingsForm.elements.namedItem(field);
+        if (input instanceof HTMLInputElement) {
+            payload[field] = input.value.trim();
+        }
+    });
+
+    setSettingsStatus('Saving…');
+
+    try {
+        const res = await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+            throw new Error('Unable to save settings');
+        }
+
+        setSettingsStatus('Settings saved.');
+        setTimeout(() => toggleSettingsPanel(false), 900);
+    } catch (err) {
+        console.error(err);
+        setSettingsStatus('Failed to save settings.', true);
+    }
+}
+
 // Event Listeners
 newSessionBtn.addEventListener('click', createNewSession);
 
@@ -189,5 +275,29 @@ window.addEventListener('resize', () => {
     }
 });
 
+if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
+        toggleSettingsPanel(true);
+        loadSettings();
+    });
+}
+
+if (closeSettingsBtn) {
+    closeSettingsBtn.addEventListener('click', () => toggleSettingsPanel(false));
+}
+
+if (cancelSettingsBtn) {
+    cancelSettingsBtn.addEventListener('click', () => toggleSettingsPanel(false));
+}
+
+if (settingsBackdrop) {
+    settingsBackdrop.addEventListener('click', () => toggleSettingsPanel(false));
+}
+
+if (settingsForm) {
+    settingsForm.addEventListener('submit', submitSettings);
+}
+
 // Initial Load
 fetchSessions();
+loadSettings();

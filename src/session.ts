@@ -1,6 +1,9 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as pty from 'node-pty';
 import { WebSocket } from 'ws';
 import { EventEmitter } from 'events';
+import { getSettings } from './config';
 
 export class ClaudeSession extends EventEmitter {
     public id: string;
@@ -14,14 +17,24 @@ export class ClaudeSession extends EventEmitter {
 
         // Determine the working directory - use the workspace volume if available, else standard PWD
         // In the Dockerfile we will mount /workspace
-        const cwd = process.env.CLAUDE_WORKSPACE_DIR || '/workspace';
+        const preferredCwd = process.env.CLAUDE_WORKSPACE_DIR || '/workspace';
+        const cwd = fs.existsSync(preferredCwd) ? preferredCwd : path.resolve(process.cwd(), 'workspace');
+
+        try {
+            fs.mkdirSync(cwd, { recursive: true });
+        } catch (err) {
+            console.warn(`Failed to ensure workspace directory ${cwd}:`, err);
+        }
+
+        const envSettings = getSettings();
+        const env = { ...process.env, ...envSettings };
 
         this.ptyProcess = pty.spawn('bash', [], {
             name: 'xterm-color',
             cols: 80,
             rows: 30,
             cwd: cwd,
-            env: process.env as any
+            env: env as any
         });
 
         this.ptyProcess.onData((data) => {

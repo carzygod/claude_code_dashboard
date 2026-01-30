@@ -22,12 +22,21 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h2>Claude Server</h2>
-                <button id="new-session-btn" class="btn-primary">
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    New Session
-                </button>
+                <div class="sidebar-header__actions">
+                    <button id="new-session-btn" class="btn-primary">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        New Session
+                    </button>
+                    <button id="settings-btn" class="btn-secondary">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 6V4m0 16v-2m6-6h2M4 12H6m12.364-5.364l1.414-1.414M5.222 18l1.414-1.414M18 12a6 6 0 11-12 0 6 6 0 0112 0z" />
+                        </svg>
+                        Settings
+                    </button>
+                </div>
             </div>
 
             <div class="session-list" id="session-list">
@@ -67,6 +76,58 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <div id="settings-panel" class="settings-panel" aria-hidden="true">
+        <div class="settings-panel__backdrop" id="settings-backdrop"></div>
+        <div class="settings-panel__card">
+            <header class="settings-panel__header">
+                <div>
+                    <p class="eyebrow">Session</p>
+                    <h3>Environment Variables</h3>
+                </div>
+                <button type="button" id="close-settings-btn" aria-label="Close settings">
+                    ×
+                </button>
+            </header>
+
+            <form id="settings-form" class="settings-form">
+                <p class="settings-form__hint">Values below are exported for every Claude session start.</p>
+                <div class="settings-panel__grid">
+                    <label class="settings-field">
+                        <span>ANTHROPIC_BASE_URL</span>
+                        <input name="ANTHROPIC_BASE_URL" required />
+                    </label>
+                    <label class="settings-field">
+                        <span>ANTHROPIC_AUTH_TOKEN</span>
+                        <input name="ANTHROPIC_AUTH_TOKEN" required />
+                    </label>
+                    <label class="settings-field">
+                        <span>ANTHROPIC_MODEL</span>
+                        <input name="ANTHROPIC_MODEL" required />
+                    </label>
+                    <label class="settings-field">
+                        <span>ANTHROPIC_SMALL_FAST_MODEL</span>
+                        <input name="ANTHROPIC_SMALL_FAST_MODEL" required />
+                    </label>
+                    <label class="settings-field">
+                        <span>API_TIMEOUT_MS</span>
+                        <input name="API_TIMEOUT_MS" required />
+                    </label>
+                    <label class="settings-field">
+                        <span>CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC</span>
+                        <input name="CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC" required />
+                    </label>
+                </div>
+
+                <div class="settings-panel__actions">
+                    <button type="button" class="btn-secondary" id="cancel-settings-btn">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+
+                <p id="settings-status" class="settings-panel__status" role="status"></p>
+            </form>
+        </div>
     </div>
 
     <script src="app.js"></script>
