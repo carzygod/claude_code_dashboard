@@ -56,7 +56,6 @@ const settingFields = [
 ];
 let apiKeyPrompted = false;
 let fileManagerPath = '.';
-let apiKeyPrompted = false;
 
 // Initialize Terminal
 // We only open the terminal when a session is active
