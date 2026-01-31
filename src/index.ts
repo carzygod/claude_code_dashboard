@@ -2,11 +2,26 @@ import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import cors from 'cors';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import archiver from 'archiver';
 import { sessionManager } from './manager';
 import { getSettings, updateSettings } from './config';
 
 const app = express();
 const port = process.env.PORT || 4000;
+const workspaceRoot = path.resolve(process.env.CLAUDE_WORKSPACE_DIR || '/workspace');
+
+fs.mkdirSync(workspaceRoot, { recursive: true });
+
+function resolveWorkspacePath(relPath?: string) {
+    const normalized = relPath ? String(relPath) : '.';
+    const target = path.resolve(workspaceRoot, normalized);
+    if (!target.startsWith(workspaceRoot)) {
+        throw new Error('Path is outside of workspace');
+    }
+    return target;
+}
 
 app.use(cors());
 app.use(express.json());
@@ -56,6 +71,79 @@ app.delete('/api/sessions/:id', (req, res) => {
     const { id } = req.params;
     sessionManager.removeSession(id);
     res.json({ status: 'deleted', id });
+});
+
+app.get('/api/files', async (req, res) => {
+    try {
+        const rel = typeof req.query.path === 'string' ? req.query.path : '.';
+        const dir = resolveWorkspacePath(rel);
+        const stats = await fs.promises.stat(dir);
+        if (!stats.isDirectory()) {
+            return res.status(400).json({ error: 'Not a directory' });
+        }
+
+        const dirents = await fs.promises.readdir(dir, { withFileTypes: true });
+        const entries = await Promise.all(dirents.map(async (dirent) => {
+            const entryPath = path.join(dir, dirent.name);
+            const entryStats = await fs.promises.stat(entryPath);
+            return {
+                name: dirent.name,
+                type: dirent.isDirectory() ? 'directory' : 'file',
+                size: entryStats.size,
+                mtime: entryStats.mtime.getTime(),
+                path: path.relative(workspaceRoot, entryPath) || '.',
+            };
+        }));
+
+        res.json({ cwd: path.relative(workspaceRoot, dir) || '.', entries });
+    } catch (error) {
+        console.error('File listing failed', error);
+        res.status(500).json({ error: (error as Error).message || 'Failed to list files' });
+    }
+});
+
+app.get('/api/files/download', async (req, res) => {
+    try {
+        const rel = String(req.query.path || '.');
+        const filePath = resolveWorkspacePath(rel);
+        const stats = await fs.promises.stat(filePath);
+        if (stats.isDirectory()) {
+            return res.status(400).json({ error: 'Path is a directory' });
+        }
+        res.download(filePath);
+    } catch (error) {
+        console.error('Download failed', error);
+        res.status(500).json({ error: (error as Error).message || 'Download failed' });
+    }
+});
+
+app.post('/api/files/zip', async (req, res) => {
+    try {
+        const rel = String(req.body?.path || '.');
+        const source = resolveWorkspacePath(rel);
+        const stats = await fs.promises.stat(source);
+        const label = String(req.body?.name || `${path.basename(source)}.zip`);
+
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="${label}"`);
+
+        const archive = archiver('zip', { zlib: { level: 9 } });
+        archive.on('error', (err: Error) => {
+            console.error('Zip error', err);
+            res.status(500).end();
+        });
+        archive.pipe(res);
+
+        if (stats.isDirectory()) {
+            archive.directory(source, false);
+        } else {
+            archive.file(source, { name: path.basename(source) });
+        }
+        await archive.finalize();
+    } catch (error) {
+        console.error('Zip failed', error);
+        res.status(500).json({ error: (error as Error).message || 'Failed to create archive' });
+    }
 });
 
 app.get('/api/settings', (req, res) => {

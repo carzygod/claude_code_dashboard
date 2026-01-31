@@ -35,13 +35,17 @@ const deleteSessionBtn = document.getElementById('delete-session-btn');
 const connectionStatus = document.getElementById('connection-status');
 const statusDot = document.querySelector('.status-indicator .dot');
 const sessionBadge = document.querySelector('.session-badge');
-const settingsBtn = document.getElementById('settings-btn');
+const settingsIconBtn = document.getElementById('settings-icon-btn');
 const settingsPanel = document.getElementById('settings-panel');
 const settingsBackdrop = document.getElementById('settings-backdrop');
 const closeSettingsBtn = document.getElementById('close-settings-btn');
 const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
 const settingsForm = document.getElementById('settings-form');
 const settingsStatus = document.getElementById('settings-status');
+const fileManagerList = document.getElementById('file-manager-list');
+const fileManagerPathInput = document.getElementById('file-manager-path');
+const fileManagerRefresh = document.getElementById('file-manager-refresh');
+const fileManagerBreadcrumb = document.getElementById('file-manager-breadcrumb');
 const settingFields = [
     'ANTHROPIC_BASE_URL',
     'ANTHROPIC_AUTH_TOKEN',
@@ -50,6 +54,9 @@ const settingFields = [
     'API_TIMEOUT_MS',
     'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
 ];
+let apiKeyPrompted = false;
+let fileManagerPath = '.';
+let apiKeyPrompted = false;
 
 // Initialize Terminal
 // We only open the terminal when a session is active
@@ -192,11 +199,15 @@ function activateSession(sessionId) {
     });
 }
 
-function toggleSettingsPanel(show) {
+function toggleSettingsPanel(show, { keepStatus = false } = {}) {
     if (!settingsPanel) return;
     settingsPanel.classList.toggle('visible', show);
     settingsPanel.setAttribute('aria-hidden', show ? 'false' : 'true');
     if (!show && settingsStatus) {
+        settingsStatus.textContent = '';
+        settingsStatus.classList.remove('error');
+    }
+    if (show && !keepStatus && settingsStatus) {
         settingsStatus.textContent = '';
         settingsStatus.classList.remove('error');
     }
@@ -226,11 +237,112 @@ async function loadSettings() {
         }
         const data = await res.json();
         populateSettings(data);
+        if (!data.ANTHROPIC_AUTH_TOKEN?.trim() && !apiKeyPrompted) {
+            apiKeyPrompted = true;
+            setSettingsStatus('Please provide your API key to use Claude.', true);
+            toggleSettingsPanel(true, { keepStatus: true });
+        }
     } catch (err) {
         console.error(err);
     }
 }
 
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+}
+
+function setBreadcrumb(path) {
+    if (fileManagerBreadcrumb) {
+        fileManagerBreadcrumb.textContent = `Path: ${path}`;
+    }
+}
+
+async function loadFileListing(path = '.') {
+    if (!fileManagerList) return;
+    const tbody = fileManagerList.querySelector('tbody');
+    tbody.innerHTML = '<tr><td colspan="4">Loading …</td></tr>';
+
+    try {
+        const res = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
+        if (!res.ok) {
+            throw new Error('Failed to load files');
+        }
+        const data = await res.json();
+        fileManagerPath = data.cwd || path;
+        fileManagerPathInput && (fileManagerPathInput.value = fileManagerPath);
+        setBreadcrumb(fileManagerPath);
+        renderFileList(data.entries || []);
+    } catch (err) {
+        console.error(err);
+        tbody.innerHTML = `<tr><td colspan="4" class="settings-panel__status error">Unable to load files: ${err.message}</td></tr>`;
+    }
+}
+
+function renderFileList(entries) {
+    if (!fileManagerList) return;
+    const tbody = fileManagerList.querySelector('tbody');
+    if (!entries.length) {
+        tbody.innerHTML = '<tr><td colspan="4">No files found in this directory.</td></tr>';
+        return;
+    }
+    const rows = entries.map(entry => {
+        const typeLabel = entry.type === 'directory' ? 'Directory' : 'File';
+        const sizeText = entry.type === 'directory' ? '-' : formatBytes(entry.size || 0);
+        const nameCell = `
+            <div class="file-manager-entity">
+                <svg viewBox="0 0 24 24">
+                    <path d="${entry.type === 'directory'
+                        ? 'M3 6h6l2 2h10v11H3z'
+                        : 'M4 4h16v16H4z'}" />
+                </svg>
+                <span>${entry.name}</span>
+            </div>`;
+        const actions = [];
+        if (entry.type === 'directory') {
+            actions.push(`<button class="btn-secondary" data-action="browse" data-path="${entry.path}">Browse</button>`);
+            actions.push(`<button class="btn-secondary" data-action="zip" data-path="${entry.path}">Zip</button>`);
+        } else {
+            actions.push(`<a class="btn-secondary" href="/api/files/download?path=${encodeURIComponent(entry.path)}">Download</a>`);
+        }
+        return `
+            <tr>
+                <td>${nameCell}</td>
+                <td><span class="pill">${typeLabel}</span></td>
+                <td>${sizeText}</td>
+                <td class="file-manager-actions-cell">${actions.join('')}</td>
+            </tr>`;
+    }).join('');
+    tbody.innerHTML = rows;
+}
+
+async function zipDirectory(path) {
+    try {
+        const res = await fetch('/api/files/zip', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path, name: `${path.split('/').filter(Boolean).pop() || 'archive'}.zip` }),
+        });
+        if (!res.ok) {
+            throw new Error('Failed to compress directory');
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `${path.split('/').filter(Boolean).pop() || 'archive'}.zip`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+        console.error('Zip error:', err);
+        setSettingsStatus('Failed to create archive.', true);
+    }
+}
 async function submitSettings(event) {
     event.preventDefault();
     if (!settingsForm) return;
@@ -275,9 +387,10 @@ window.addEventListener('resize', () => {
     }
 });
 
-if (settingsBtn) {
-    settingsBtn.addEventListener('click', () => {
+if (settingsIconBtn) {
+    settingsIconBtn.addEventListener('click', () => {
         toggleSettingsPanel(true);
+        setSettingsStatus('');
         loadSettings();
     });
 }
@@ -298,6 +411,35 @@ if (settingsForm) {
     settingsForm.addEventListener('submit', submitSettings);
 }
 
+if (fileManagerRefresh) {
+    fileManagerRefresh.addEventListener('click', () => loadFileListing(fileManagerPathInput?.value || '.'));
+}
+
+if (fileManagerPathInput) {
+    fileManagerPathInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            loadFileListing(fileManagerPathInput.value || '.');
+        }
+    });
+}
+
+if (fileManagerList) {
+    fileManagerList.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const action = button.dataset.action;
+        const targetPath = button.dataset.path;
+        if (!targetPath) return;
+
+        if (action === 'browse') {
+            loadFileListing(targetPath);
+        } else if (action === 'zip') {
+            zipDirectory(targetPath);
+        }
+    });
+}
+
 // Initial Load
 fetchSessions();
 loadSettings();
+loadFileListing();
