@@ -52,6 +52,7 @@ const fileManagerDrawer = document.getElementById('file-manager-drawer');
 const fileManagerToggle = document.getElementById('file-manager-toggle');
 const fileManagerClose = document.getElementById('file-manager-close');
 const settingsLink = document.getElementById('open-settings-link');
+const openFileManagerBtn = document.getElementById('open-file-manager-btn');
 const loginOverlay = document.getElementById('login-overlay');
 const loginForm = document.getElementById('login-form');
 const loginStatus = document.getElementById('login-status');
@@ -492,6 +493,12 @@ fileManagerToggle?.addEventListener('click', () => {
     if (opened) {
         loadFileListing(fileManagerPathInput?.value || fileManagerPath);
     }
+});
+
+openFileManagerBtn?.addEventListener('click', () => {
+    if (!fileManagerDrawer) return;
+    fileManagerDrawer.classList.add('open');
+    loadFileListing(fileManagerPathInput?.value || fileManagerPath);
 });
 
 fileManagerClose?.addEventListener('click', () => {
