@@ -331,6 +331,44 @@ function setBreadcrumb(path) {
     }
 }
 
+function renderFileList(entries) {
+    if (!fileManagerList) return;
+    const tbody = fileManagerList.querySelector('tbody');
+    if (!entries.length) {
+        tbody.innerHTML = '<tr><td colspan="4">No files found in this directory.</td></tr>';
+        return;
+    }
+    const rows = entries.map(entry => {
+        const typeLabel = entry.type === 'directory' ? 'Directory' : 'File';
+        const sizeText = entry.type === 'directory' ? '-' : formatBytes(entry.size || 0);
+        const nameCell = `
+            <div class="file-manager-entity">
+                <svg viewBox="0 0 24 24">
+                    <path d="${entry.type === 'directory' ? 'M3 6h6l2 2h10v11H3z' : 'M4 4h16v16H4z'}" />
+                </svg>
+                <span>${entry.name}</span>
+            </div>`;
+        const downloadToken = authToken ? `&token=${encodeURIComponent(authToken)}` : '';
+        const actions = [];
+        if (entry.type === 'directory') {
+            actions.push(`<button class="btn-secondary" data-action="browse" data-path="${entry.path}">Browse</button>`);
+            actions.push(`<button class="btn-secondary" data-action="zip" data-path="${entry.path}">Zip</button>`);
+            actions.push(`<button class="btn-secondary" data-action="delete" data-path="${entry.path}">Delete</button>`);
+        } else {
+            actions.push(`<a class="btn-secondary" href="/api/files/download?path=${encodeURIComponent(entry.path)}${downloadToken}">Download</a>`);
+            actions.push(`<button class="btn-secondary" data-action="delete" data-path="${entry.path}">Delete</button>`);
+        }
+        return `
+            <tr>
+                <td>${nameCell}</td>
+                <td><span class="pill">${typeLabel}</span></td>
+                <td>${sizeText}</td>
+                <td class="file-manager-actions-cell">${actions.join('')}</td>
+            </tr>`;
+    }).join('');
+    tbody.innerHTML = rows;
+}
+
 
 async function loadFileListing(path = '.') {
     if (!fileManagerList) return;
