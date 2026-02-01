@@ -1,4 +1,6 @@
-const term = new Terminal({
+(() => {
+    'use strict';
+    const term = new Terminal({
     theme: {
         background: '#0d0d12',
         foreground: '#e2e8f0',
@@ -45,6 +47,7 @@ const fileManagerList = document.getElementById('file-manager-list');
 const fileManagerPathInput = document.getElementById('file-manager-path');
 const fileManagerRefresh = document.getElementById('file-manager-refresh');
 const fileManagerBreadcrumb = document.getElementById('file-manager-breadcrumb');
+const fileManagerStatus = document.getElementById('file-manager-status');
 const fileManagerDrawer = document.getElementById('file-manager-drawer');
 const fileManagerToggle = document.getElementById('file-manager-toggle');
 const fileManagerClose = document.getElementById('file-manager-close');
@@ -236,6 +239,12 @@ function setSettingsStatus(message, isError = false) {
     settingsStatus.classList.toggle('error', isError);
 }
 
+function updateFileManagerStatus(message, isError = false) {
+    if (!fileManagerStatus) return;
+    fileManagerStatus.textContent = message;
+    fileManagerStatus.classList.toggle('error', isError);
+}
+
 function populateSettings(values) {
     if (!settingsForm) return;
     settingFields.forEach((field) => {
@@ -307,15 +316,6 @@ async function attemptLogin(event) {
     }
 }
 
-function authFetch(input, init = {}) {
-    if (!authToken) {
-        throw new Error('Not authenticated');
-    }
-    const headers = new Headers(init.headers || {});
-    headers.set('X-CLAUDE-TOKEN', authToken);
-    return fetch(input, { ...init, headers });
-}
-
 function formatBytes(bytes) {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -330,10 +330,11 @@ function setBreadcrumb(path) {
     }
 }
 
+
 async function loadFileListing(path = '.') {
     if (!fileManagerList) return;
     const tbody = fileManagerList.querySelector('tbody');
-    tbody.innerHTML = '<tr><td colspan="4">Loading …</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
 
     try {
         const res = await authFetch(`/api/files?path=${encodeURIComponent(path)}`);
@@ -342,62 +343,27 @@ async function loadFileListing(path = '.') {
         }
         const data = await res.json();
         fileManagerPath = data.cwd || path;
-        fileManagerPathInput && (fileManagerPathInput.value = fileManagerPath);
+        if (fileManagerPathInput) {
+            fileManagerPathInput.value = fileManagerPath;
+        }
         setBreadcrumb(fileManagerPath);
         renderFileList(data.entries || []);
+        const entryCount = (data.entries || []).length;
+        updateFileManagerStatus(`Loaded ${entryCount} item${entryCount === 1 ? '' : 's'} from ${fileManagerPath}`);
     } catch (err) {
         console.error(err);
         handleAuthError(err);
-        tbody.innerHTML = `<tr><td colspan="4" class="settings-panel__status error">Unable to load files: ${err.message}</td></tr>`;
+        updateFileManagerStatus(`Unable to load files: ${err.message}`, true);
+        tbody.innerHTML = `<tr><td colspan="4">Unable to load files: ${err.message}</td></tr>`;
     }
 }
-
-function renderFileList(entries) {
-    if (!fileManagerList) return;
-    const tbody = fileManagerList.querySelector('tbody');
-    if (!entries.length) {
-        tbody.innerHTML = '<tr><td colspan="4">No files found in this directory.</td></tr>';
-        return;
-    }
-    const rows = entries.map(entry => {
-        const typeLabel = entry.type === 'directory' ? 'Directory' : 'File';
-        const sizeText = entry.type === 'directory' ? '-' : formatBytes(entry.size || 0);
-        const nameCell = `
-            <div class="file-manager-entity">
-                <svg viewBox="0 0 24 24">
-                    <path d="${entry.type === 'directory'
-                        ? 'M3 6h6l2 2h10v11H3z'
-                        : 'M4 4h16v16H4z'}" />
-                </svg>
-                <span>${entry.name}</span>
-            </div>`;
-        const downloadToken = authToken ? `&token=${encodeURIComponent(authToken)}` : '';
-        const actions = [];
-        if (entry.type === 'directory') {
-            actions.push(`<button class="btn-secondary" data-action="browse" data-path="${entry.path}">Browse</button>`);
-            actions.push(`<button class="btn-secondary" data-action="zip" data-path="${entry.path}">Zip</button>`);
-            actions.push(`<button class="btn-secondary" data-action="delete" data-path="${entry.path}">Delete</button>`);
-        } else {
-            actions.push(`<a class="btn-secondary" href="/api/files/download?path=${encodeURIComponent(entry.path)}${downloadToken}">Download</a>`);
-            actions.push(`<button class="btn-secondary" data-action="delete" data-path="${entry.path}">Delete</button>`);
-        }
-        return `
-            <tr>
-                <td>${nameCell}</td>
-                <td><span class="pill">${typeLabel}</span></td>
-                <td>${sizeText}</td>
-                <td class="file-manager-actions-cell">${actions.join('')}</td>
-            </tr>`;
-    }).join('');
-    tbody.innerHTML = rows;
-}
-
 async function deleteItem(path) {
     if (!confirm(`Delete ${path}? This cannot be undone.`)) return;
     try {
         const res = await authFetch(`/api/files?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Delete failed');
-        loadFileListing(fileManagerPathInput?.value || fileManagerPath);
+        updateFileManagerStatus(`Deleted ${path}`);
+        await loadFileListing(fileManagerPathInput?.value || fileManagerPath);
     } catch (err) {
         console.error('Delete error:', err);
         setSettingsStatus('Delete failed.', true);
@@ -411,12 +377,14 @@ function initializeApp() {
     loadFileListing();
 }
 
+
 async function zipDirectory(path) {
     try {
+        const label = `${path.split('/').filter(Boolean).pop() || 'archive'}.zip`;
         const res = await authFetch('/api/files/zip', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path, name: `${path.split('/').filter(Boolean).pop() || 'archive'}.zip` }),
+            body: JSON.stringify({ path, name: label }),
         });
         if (!res.ok) {
             throw new Error('Failed to compress directory');
@@ -425,11 +393,12 @@ async function zipDirectory(path) {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = url;
-        anchor.download = `${path.split('/').filter(Boolean).pop() || 'archive'}.zip`;
+        anchor.download = label;
         document.body.appendChild(anchor);
         anchor.click();
         document.body.removeChild(anchor);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+        updateFileManagerStatus(`Compressed ${path} → ${label}`);
     } catch (err) {
         console.error('Zip error:', err);
         setSettingsStatus('Failed to create archive.', true);
@@ -447,7 +416,7 @@ async function submitSettings(event) {
         }
     });
 
-    setSettingsStatus('Saving…');
+    setSettingsStatus('Saving...');
 
     try {
         const res = await authFetch('/api/settings', {
@@ -468,8 +437,9 @@ async function submitSettings(event) {
     }
 }
 
+
 // Event Listeners
-newSessionBtn.addEventListener('click', createNewSession);
+newSessionBtn?.addEventListener('click', createNewSession);
 
 window.addEventListener('resize', () => {
     if (currentSessionId) {
@@ -480,98 +450,55 @@ window.addEventListener('resize', () => {
     }
 });
 
-if (settingsLink) {
-    settingsLink.addEventListener('click', () => {
-        toggleSettingsPanel(true);
-        setSettingsStatus('');
-        loadSettings();
-    });
-}
+settingsLink?.addEventListener('click', () => {
+    toggleSettingsPanel(true);
+    setSettingsStatus('');
+    loadSettings();
+});
 
-if (closeSettingsBtn) {
-    closeSettingsBtn.addEventListener('click', () => toggleSettingsPanel(false));
-}
+[closeSettingsBtn, cancelSettingsBtn].forEach((button) => {
+    button?.addEventListener('click', () => toggleSettingsPanel(false));
+});
 
-if (cancelSettingsBtn) {
-    cancelSettingsBtn.addEventListener('click', () => toggleSettingsPanel(false));
-}
+settingsBackdrop?.addEventListener('click', () => toggleSettingsPanel(false));
+settingsForm?.addEventListener('submit', submitSettings);
 
-if (settingsBackdrop) {
-    settingsBackdrop.addEventListener('click', () => toggleSettingsPanel(false));
-}
+fileManagerRefresh?.addEventListener('click', () => loadFileListing(fileManagerPathInput?.value || '.'));
+fileManagerPathInput?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+        loadFileListing(fileManagerPathInput.value || '.');
+    }
+});
 
-if (settingsForm) {
-    settingsForm.addEventListener('submit', submitSettings);
-}
+fileManagerList?.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+    const action = button.dataset.action;
+    const targetPath = button.dataset.path;
+    if (!targetPath) return;
 
-if (fileManagerRefresh) {
-    fileManagerRefresh.addEventListener('click', () => loadFileListing(fileManagerPathInput?.value || '.'));
-}
+    if (action === 'browse') {
+        loadFileListing(targetPath);
+    } else if (action === 'zip') {
+        zipDirectory(targetPath);
+    } else if (action === 'delete') {
+        deleteItem(targetPath);
+    }
+});
 
-if (fileManagerPathInput) {
-    fileManagerPathInput.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-            loadFileListing(fileManagerPathInput.value || '.');
-        }
-    });
-}
+fileManagerToggle?.addEventListener('click', () => {
+    if (!fileManagerDrawer) return;
+    const opened = fileManagerDrawer.classList.toggle('open');
+    if (opened) {
+        loadFileListing(fileManagerPathInput?.value || fileManagerPath);
+    }
+});
 
-if (fileManagerList) {
-    fileManagerList.addEventListener('click', (event) => {
-        const button = event.target.closest('button[data-action]');
-        if (!button) return;
-        const action = button.dataset.action;
-        const targetPath = button.dataset.path;
-        if (!targetPath) return;
+fileManagerClose?.addEventListener('click', () => {
+    fileManagerDrawer?.classList.remove('open');
+});
 
-        if (action === 'browse') {
-            loadFileListing(targetPath);
-        } else if (action === 'zip') {
-            zipDirectory(targetPath);
-        } else if (action === 'delete') {
-            deleteItem(targetPath);
-        }
-    });
-}
-
-if (settingsLink) {
-    settingsLink.addEventListener('click', () => {
-        toggleSettingsPanel(true);
-        setSettingsStatus('');
-        loadSettings();
-    });
-}
-
-if (closeSettingsBtn) {
-    closeSettingsBtn.addEventListener('click', () => toggleSettingsPanel(false));
-}
-
-if (cancelSettingsBtn) {
-    cancelSettingsBtn.addEventListener('click', () => toggleSettingsPanel(false));
-}
-
-if (settingsBackdrop) {
-    settingsBackdrop.addEventListener('click', () => toggleSettingsPanel(false));
-}
-
-if (settingsForm) {
-    settingsForm.addEventListener('submit', submitSettings);
-}
-
-if (fileManagerToggle) {
-    fileManagerToggle.addEventListener('click', () => {
-        fileManagerDrawer?.classList.toggle('open');
-    });
-}
-
-if (fileManagerClose) {
-    fileManagerClose.addEventListener('click', () => {
-        fileManagerDrawer?.classList.remove('open');
-    });
-}
-
-if (loginForm) {
-    loginForm.addEventListener('submit', attemptLogin);
-}
+loginForm?.addEventListener('submit', attemptLogin);
 
 showLogin();
+})();

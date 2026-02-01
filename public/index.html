@@ -28,7 +28,7 @@
             </div>
             <div class="session-list" id="session-list"></div>
             <div class="sidebar-footer">
-                <button id="open-settings-link" class="settings-link">Settings</button>
+                <button id="open-settings-link" class="settings-btn">Settings</button>
                 <div class="status-indicator">
                     <span class="dot connected"></span>
                     <span id="connection-status">Connected</span>
@@ -47,10 +47,18 @@
                 </div>
             </header>
 
+            <div class="file-manager-hint" id="file-manager-hint">
+                <span>右侧抽屉 · 文件管理</span>
+                <p>点击上方蓝色标签即可展开并查看工作区文件，支持下载、压缩与删除操作。</p>
+            </div>
+
             <div class="file-manager-drawer" id="file-manager-drawer">
                 <div class="drawer-toggle" id="file-manager-toggle">
                     <svg viewBox="0 0 24 24"><path d="M3 12h18M9 6h12M9 18h12"/></svg>
-                    <span>Files</span>
+                    <div class="drawer-toggle__content">
+                        <span>Workspace Explorer</span>
+                        <small>右侧抽屉 · 点击展开</small>
+                    </div>
                 </div>
                 <div class="drawer-content" id="file-manager-drawer-content">
                     <div class="drawer-header">
@@ -63,6 +71,7 @@
                             <button id="file-manager-refresh" class="btn-secondary">Refresh</button>
                         </div>
                         <div class="file-manager-breadcrumb" id="file-manager-breadcrumb"></div>
+                        <p id="file-manager-status" class="file-manager-status">点击刷新以查看目录内容。</p>
                         <div class="file-manager-table-wrapper">
                             <table id="file-manager-list">
                                 <thead>
@@ -168,7 +177,7 @@
                     </label>
                     <label class="settings-field">
                         <span>Admin Password</span>
-                        <input type="password" name="ADMIN_PASSWORD" placeholder="••••••••" required />
+                        <input type="password" name="ADMIN_PASSWORD" placeholder="Enter a secure password" required />
                     </label>
                 </div>
 
