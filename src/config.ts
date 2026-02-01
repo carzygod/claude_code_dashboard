@@ -8,6 +8,8 @@ export interface SettingsPayload {
     ANTHROPIC_SMALL_FAST_MODEL: string;
     API_TIMEOUT_MS: string;
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: string;
+    ADMIN_USERNAME: string;
+    ADMIN_PASSWORD: string;
 }
 
 const DEFAULT_SETTINGS: SettingsPayload = {
@@ -17,6 +19,8 @@ const DEFAULT_SETTINGS: SettingsPayload = {
     ANTHROPIC_SMALL_FAST_MODEL: 'deepseek-chat',
     API_TIMEOUT_MS: '600000',
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
+    ADMIN_USERNAME: 'admin',
+    ADMIN_PASSWORD: 'admin',
 };
 
 const SETTINGS_FILE = path.resolve(process.cwd(), 'settings.json');

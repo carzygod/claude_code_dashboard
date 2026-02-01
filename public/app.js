@@ -46,6 +46,9 @@ const fileManagerList = document.getElementById('file-manager-list');
 const fileManagerPathInput = document.getElementById('file-manager-path');
 const fileManagerRefresh = document.getElementById('file-manager-refresh');
 const fileManagerBreadcrumb = document.getElementById('file-manager-breadcrumb');
+const loginOverlay = document.getElementById('login-overlay');
+const loginForm = document.getElementById('login-form');
+const loginStatus = document.getElementById('login-status');
 const settingFields = [
     'ANTHROPIC_BASE_URL',
     'ANTHROPIC_AUTH_TOKEN',
@@ -53,9 +56,12 @@ const settingFields = [
     'ANTHROPIC_SMALL_FAST_MODEL',
     'API_TIMEOUT_MS',
     'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+    'ADMIN_USERNAME',
+    'ADMIN_PASSWORD',
 ];
 let apiKeyPrompted = false;
 let fileManagerPath = '.';
+let authToken = null;
 
 // Initialize Terminal
 // We only open the terminal when a session is active
@@ -63,7 +69,7 @@ let fileManagerPath = '.';
 
 async function fetchSessions() {
     try {
-        const res = await fetch('/api/sessions');
+        const res = await authFetch('/api/sessions');
         const sessions = await res.json();
         renderSessionList(sessions);
     } catch (e) {
@@ -73,7 +79,7 @@ async function fetchSessions() {
 
 async function createNewSession() {
     try {
-        const res = await fetch('/api/sessions', { method: 'POST' });
+        const res = await authFetch('/api/sessions', { method: 'POST' });
         const data = await res.json();
         await fetchSessions();
         activateSession(data.id);
@@ -86,7 +92,7 @@ async function deleteSession(id) {
     if (!confirm('Are you sure you want to terminate this session?')) return;
 
     try {
-        await fetch('/api/sessions/' + id, { method: 'DELETE' });
+        await authFetch('/api/sessions/' + id, { method: 'DELETE' });
         if (currentSessionId === id) {
             disconnectCurrentSession();
         }
@@ -230,7 +236,7 @@ function populateSettings(values) {
 
 async function loadSettings() {
     try {
-        const res = await fetch('/api/settings');
+        const res = await authFetch('/api/settings');
         if (!res.ok) {
             throw new Error('Failed to load settings');
         }
@@ -243,6 +249,48 @@ async function loadSettings() {
         }
     } catch (err) {
         console.error(err);
+    }
+}
+
+function authFetch(input, init = {}) {
+    if (!authToken) {
+        throw new Error('Not authenticated');
+    }
+    const headers = new Headers(init.headers || {});
+    headers.set('X-CLAUDE-TOKEN', authToken);
+    return fetch(input, { ...init, headers });
+}
+
+function showLogin(message = 'Please authenticate to continue') {
+    if (loginOverlay) loginOverlay.style.display = 'flex';
+    if (loginStatus) loginStatus.textContent = message;
+}
+
+function hideLogin() {
+    if (loginOverlay) loginOverlay.style.display = 'none';
+    if (loginStatus) loginStatus.textContent = '';
+}
+
+async function attemptLogin(event) {
+    event?.preventDefault();
+    if (!loginForm) return;
+    const formData = new FormData(loginForm);
+    const username = String(formData.get('username') || '').trim();
+    const password = String(formData.get('password') || '').trim();
+    try {
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+        });
+        if (!res.ok) throw new Error('Invalid credentials');
+        const data = await res.json();
+        authToken = data.token;
+        hideLogin();
+        initializeApp();
+    } catch (err) {
+        console.error('Login failed', err);
+        if (loginStatus) loginStatus.textContent = 'Login failed';
     }
 }
 
@@ -266,7 +314,7 @@ async function loadFileListing(path = '.') {
     tbody.innerHTML = '<tr><td colspan="4">Loading …</td></tr>';
 
     try {
-        const res = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
+        const res = await authFetch(`/api/files?path=${encodeURIComponent(path)}`);
         if (!res.ok) {
             throw new Error('Failed to load files');
         }
@@ -304,8 +352,10 @@ function renderFileList(entries) {
         if (entry.type === 'directory') {
             actions.push(`<button class="btn-secondary" data-action="browse" data-path="${entry.path}">Browse</button>`);
             actions.push(`<button class="btn-secondary" data-action="zip" data-path="${entry.path}">Zip</button>`);
+            actions.push(`<button class="btn-secondary" data-action="delete" data-path="${entry.path}">Delete</button>`);
         } else {
             actions.push(`<a class="btn-secondary" href="/api/files/download?path=${encodeURIComponent(entry.path)}">Download</a>`);
+            actions.push(`<button class="btn-secondary" data-action="delete" data-path="${entry.path}">Delete</button>`);
         }
         return `
             <tr>
@@ -318,9 +368,27 @@ function renderFileList(entries) {
     tbody.innerHTML = rows;
 }
 
+async function deleteItem(path) {
+    if (!confirm(`Delete ${path}? This cannot be undone.`)) return;
+    try {
+        const res = await authFetch(`/api/files?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
+        loadFileListing(fileManagerPathInput?.value || fileManagerPath);
+    } catch (err) {
+        console.error('Delete error:', err);
+        setSettingsStatus('Delete failed.', true);
+    }
+}
+
+function initializeApp() {
+    fetchSessions();
+    loadSettings();
+    loadFileListing();
+}
+
 async function zipDirectory(path) {
     try {
-        const res = await fetch('/api/files/zip', {
+        const res = await authFetch('/api/files/zip', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path, name: `${path.split('/').filter(Boolean).pop() || 'archive'}.zip` }),
@@ -356,7 +424,7 @@ async function submitSettings(event) {
     setSettingsStatus('Saving…');
 
     try {
-        const res = await fetch('/api/settings', {
+        const res = await authFetch('/api/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -434,11 +502,14 @@ if (fileManagerList) {
             loadFileListing(targetPath);
         } else if (action === 'zip') {
             zipDirectory(targetPath);
+        } else if (action === 'delete') {
+            deleteItem(targetPath);
         }
     });
 }
 
-// Initial Load
-fetchSessions();
-loadSettings();
-loadFileListing();
+if (loginForm) {
+    loginForm.addEventListener('submit', attemptLogin);
+}
+
+showLogin();

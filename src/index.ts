@@ -4,6 +4,7 @@ import { WebSocketServer } from 'ws';
 import cors from 'cors';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import archiver from 'archiver';
 import { sessionManager } from './manager';
 import { getSettings, updateSettings } from './config';
@@ -25,6 +26,15 @@ function resolveWorkspacePath(relPath?: string) {
 
 app.use(cors());
 app.use(express.json());
+let activeToken: string | null = null;
+
+function ensureAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+    const provided = req.header('X-CLAUDE-TOKEN');
+    if (activeToken && provided && provided === activeToken) {
+        return next();
+    }
+    res.status(401).json({ error: 'Unauthorized' });
+}
 
 // Serve static files for a simple client UI
 app.use(express.static('public'));
@@ -52,14 +62,27 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body || {};
+    const settings = getSettings();
+    if (
+        String(username) === settings.ADMIN_USERNAME &&
+        String(password) === settings.ADMIN_PASSWORD
+    ) {
+        activeToken = randomUUID();
+        return res.json({ token: activeToken });
+    }
+    res.status(401).json({ error: 'Invalid credentials' });
+});
+
 // API to list sessions
-app.get('/api/sessions', (req, res) => {
+app.get('/api/sessions', ensureAuth, (req, res) => {
     const sessions = sessionManager.getAllSessions();
     res.json(sessions);
 });
 
 // API to create a new session
-app.post('/api/sessions', (req, res) => {
+app.post('/api/sessions', ensureAuth, (req, res) => {
     const sessionId = req.body.id || `session-${Date.now()}`;
     const autoLaunchClaude = req.body?.autoLaunchClaude !== false;
     sessionManager.createSession(sessionId, { autoLaunchClaude });
@@ -67,13 +90,13 @@ app.post('/api/sessions', (req, res) => {
 });
 
 // API to delete a session
-app.delete('/api/sessions/:id', (req, res) => {
+app.delete('/api/sessions/:id', ensureAuth, (req, res) => {
     const { id } = req.params;
     sessionManager.removeSession(id);
     res.json({ status: 'deleted', id });
 });
 
-app.get('/api/files', async (req, res) => {
+app.get('/api/files', ensureAuth, async (req, res) => {
     try {
         const rel = typeof req.query.path === 'string' ? req.query.path : '.';
         const dir = resolveWorkspacePath(rel);
@@ -102,7 +125,7 @@ app.get('/api/files', async (req, res) => {
     }
 });
 
-app.get('/api/files/download', async (req, res) => {
+app.get('/api/files/download', ensureAuth, async (req, res) => {
     try {
         const rel = String(req.query.path || '.');
         const filePath = resolveWorkspacePath(rel);
@@ -117,7 +140,7 @@ app.get('/api/files/download', async (req, res) => {
     }
 });
 
-app.post('/api/files/zip', async (req, res) => {
+app.post('/api/files/zip', ensureAuth, async (req, res) => {
     try {
         const rel = String(req.body?.path || '.');
         const source = resolveWorkspacePath(rel);
@@ -146,11 +169,26 @@ app.post('/api/files/zip', async (req, res) => {
     }
 });
 
-app.get('/api/settings', (req, res) => {
+app.delete('/api/files', ensureAuth, async (req, res) => {
+    try {
+        const rel = String(req.query.path || '.');
+        if (!rel || rel === '.' || rel === '/' || rel === workspaceRoot) {
+            return res.status(400).json({ error: 'Cannot delete workspace root' });
+        }
+        const target = resolveWorkspacePath(rel);
+        await fs.promises.rm(target, { recursive: true, force: true });
+        res.json({ ok: true });
+    } catch (error) {
+        console.error('Delete failed', error);
+        res.status(500).json({ error: (error as Error).message || 'Delete failed' });
+    }
+});
+
+app.get('/api/settings', ensureAuth, (req, res) => {
     res.json(getSettings());
 });
 
-app.post('/api/settings', (req, res) => {
+app.post('/api/settings', ensureAuth, (req, res) => {
     try {
         const updated = updateSettings(req.body);
         res.json(updated);

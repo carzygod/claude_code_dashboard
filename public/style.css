@@ -172,6 +172,52 @@ body {
     flex-direction: column;
     background: rgba(0, 0, 0, 0.4);
 }
+@media (max-width: 1024px) {
+    .app-container {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+    }
+    .sidebar-footer {
+        display: none;
+    }
+    .session-list {
+        order: 3;
+        margin: 0;
+        width: 100%;
+        padding: 0 1rem;
+    }
+    .file-manager-panel {
+        margin: 1rem;
+    }
+    .top-bar {
+        padding: 0.75rem 1rem;
+    }
+    .terminal-wrapper {
+        padding: 1rem;
+    }
+    .file-manager-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .file-manager-actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    .file-manager-path {
+        flex: 1;
+        min-width: 120px;
+    }
+    #file-manager-list {
+        min-width: unset;
+    }
+}
 
 .top-bar {
     height: 64px;
@@ -403,6 +449,60 @@ body {
     color: var(--danger-color);
 }
 
+.login-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 60;
+}
+
+.login-card {
+    background: rgba(8, 8, 18, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 2rem;
+    width: min(320px, 90%);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    text-align: center;
+}
+
+.login-card h2 {
+    margin-bottom: 0.25rem;
+}
+
+.login-card p {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.login-card form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.login-card label span {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--text-secondary);
+}
+
+.login-card input {
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 0.65rem 0.8rem;
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.login-card button {
+    margin-top: 0.25rem;
+}
 .settings-form__hint {
     font-size: 0.85rem;
     color: var(--text-secondary);
@@ -442,6 +542,11 @@ body {
     padding: 0.5rem 0.75rem;
     color: var(--text-primary);
     font-family: 'JetBrains Mono', monospace;
+}
+
+.file-manager-actions button,
+.file-manager-actions input {
+    min-width: 90px;
 }
 
 .file-manager-body {
@@ -501,4 +606,54 @@ body {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
     color: var(--text-secondary);
+}
+
+.file-manager-actions button,
+.file-manager-actions input {
+    min-width: 120px;
+}
+
+.file-manager-panel {
+    max-width: 1100px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+@media (max-width: 1024px) {
+    .app-container {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        order: 0;
+        padding: 1rem;
+    }
+    .session-list {
+        order: 3;
+        margin: 0;
+        max-height: 220px;
+    }
+    .file-manager-panel {
+        margin: 1rem;
+        padding: 1rem;
+    }
+    .top-bar {
+        padding: 0.75rem 1rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.6rem;
+    }
+    .terminal-wrapper {
+        padding: 1rem;
+    }
+    .file-manager-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .file-manager-actions {
+        flex-wrap: wrap;
+    }
+    #file-manager-list {
+        min-width: 0;
+    }
 }
