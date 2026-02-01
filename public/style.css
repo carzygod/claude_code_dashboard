@@ -235,6 +235,23 @@ body {
     gap: 0.5rem;
 }
 
+.settings-link {
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.sidebar-footer {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+}
+
 .btn-icon {
     width: 40px;
     height: 40px;
@@ -569,6 +586,87 @@ body {
     width: 100%;
     border-collapse: collapse;
     min-width: 600px;
+}
+
+.file-manager-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: 320px;
+    max-width: 90vw;
+    transform: translateX(100%);
+    transition: transform 0.35s ease;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.file-manager-drawer.open {
+    transform: translateX(0);
+}
+
+.drawer-toggle {
+    position: fixed;
+    top: 20%;
+    right: 0;
+    transform: translate(50%, -50%);
+    background: rgba(15, 15, 22, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    padding: 0.4rem 0.5rem;
+    border-radius: 12px 0 0 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.drawer-toggle svg {
+    width: 20px;
+    height: 20px;
+    stroke: var(--text-primary);
+}
+
+.drawer-content {
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 15, 22, 0.98);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    box-shadow: -20px 0 50px rgba(0, 0, 0, 0.6);
+}
+
+.drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.btn-link {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.drawer-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.file-manager-action-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 #file-manager-list th,

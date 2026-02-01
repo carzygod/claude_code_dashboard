@@ -35,7 +35,6 @@ const deleteSessionBtn = document.getElementById('delete-session-btn');
 const connectionStatus = document.getElementById('connection-status');
 const statusDot = document.querySelector('.status-indicator .dot');
 const sessionBadge = document.querySelector('.session-badge');
-const settingsIconBtn = document.getElementById('settings-icon-btn');
 const settingsPanel = document.getElementById('settings-panel');
 const settingsBackdrop = document.getElementById('settings-backdrop');
 const closeSettingsBtn = document.getElementById('close-settings-btn');
@@ -46,6 +45,13 @@ const fileManagerList = document.getElementById('file-manager-list');
 const fileManagerPathInput = document.getElementById('file-manager-path');
 const fileManagerRefresh = document.getElementById('file-manager-refresh');
 const fileManagerBreadcrumb = document.getElementById('file-manager-breadcrumb');
+const fileManagerDrawer = document.getElementById('file-manager-drawer');
+const fileManagerToggle = document.getElementById('file-manager-toggle');
+const fileManagerClose = document.getElementById('file-manager-close');
+const settingsLink = document.getElementById('open-settings-link');
+const loginOverlay = document.getElementById('login-overlay');
+const loginForm = document.getElementById('login-form');
+const loginStatus = document.getElementById('login-status');
 const loginOverlay = document.getElementById('login-overlay');
 const loginForm = document.getElementById('login-form');
 const loginStatus = document.getElementById('login-status');
@@ -67,6 +73,12 @@ let authToken = null;
 // We only open the terminal when a session is active
 // term.open(terminalContainer); 
 
+const handleAuthError = (err) => {
+    if (err instanceof Error && err.message === 'Not authenticated') {
+        showLogin();
+    }
+};
+
 async function fetchSessions() {
     try {
         const res = await authFetch('/api/sessions');
@@ -74,6 +86,7 @@ async function fetchSessions() {
         renderSessionList(sessions);
     } catch (e) {
         console.error('Failed to fetch sessions', e);
+        handleAuthError(e);
     }
 }
 
@@ -85,6 +98,7 @@ async function createNewSession() {
         activateSession(data.id);
     } catch (e) {
         console.error('Failed to create session', e);
+        handleAuthError(e);
     }
 }
 
@@ -99,6 +113,7 @@ async function deleteSession(id) {
         await fetchSessions();
     } catch (e) {
         console.error('Failed to delete session', e);
+        handleAuthError(e);
     }
 }
 
@@ -249,6 +264,7 @@ async function loadSettings() {
         }
     } catch (err) {
         console.error(err);
+        handleAuthError(err);
     }
 }
 
@@ -294,6 +310,15 @@ async function attemptLogin(event) {
     }
 }
 
+function authFetch(input, init = {}) {
+    if (!authToken) {
+        throw new Error('Not authenticated');
+    }
+    const headers = new Headers(init.headers || {});
+    headers.set('X-CLAUDE-TOKEN', authToken);
+    return fetch(input, { ...init, headers });
+}
+
 function formatBytes(bytes) {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -325,6 +350,7 @@ async function loadFileListing(path = '.') {
         renderFileList(data.entries || []);
     } catch (err) {
         console.error(err);
+        handleAuthError(err);
         tbody.innerHTML = `<tr><td colspan="4" class="settings-panel__status error">Unable to load files: ${err.message}</td></tr>`;
     }
 }
@@ -348,13 +374,14 @@ function renderFileList(entries) {
                 </svg>
                 <span>${entry.name}</span>
             </div>`;
+        const downloadToken = authToken ? `&token=${encodeURIComponent(authToken)}` : '';
         const actions = [];
         if (entry.type === 'directory') {
             actions.push(`<button class="btn-secondary" data-action="browse" data-path="${entry.path}">Browse</button>`);
             actions.push(`<button class="btn-secondary" data-action="zip" data-path="${entry.path}">Zip</button>`);
             actions.push(`<button class="btn-secondary" data-action="delete" data-path="${entry.path}">Delete</button>`);
         } else {
-            actions.push(`<a class="btn-secondary" href="/api/files/download?path=${encodeURIComponent(entry.path)}">Download</a>`);
+            actions.push(`<a class="btn-secondary" href="/api/files/download?path=${encodeURIComponent(entry.path)}${downloadToken}">Download</a>`);
             actions.push(`<button class="btn-secondary" data-action="delete" data-path="${entry.path}">Delete</button>`);
         }
         return `
@@ -377,6 +404,7 @@ async function deleteItem(path) {
     } catch (err) {
         console.error('Delete error:', err);
         setSettingsStatus('Delete failed.', true);
+        handleAuthError(err);
     }
 }
 
@@ -408,6 +436,7 @@ async function zipDirectory(path) {
     } catch (err) {
         console.error('Zip error:', err);
         setSettingsStatus('Failed to create archive.', true);
+        handleAuthError(err);
     }
 }
 async function submitSettings(event) {
@@ -454,8 +483,8 @@ window.addEventListener('resize', () => {
     }
 });
 
-if (settingsIconBtn) {
-    settingsIconBtn.addEventListener('click', () => {
+if (settingsLink) {
+    settingsLink.addEventListener('click', () => {
         toggleSettingsPanel(true);
         setSettingsStatus('');
         loadSettings();
@@ -505,6 +534,42 @@ if (fileManagerList) {
         } else if (action === 'delete') {
             deleteItem(targetPath);
         }
+    });
+}
+
+if (settingsLink) {
+    settingsLink.addEventListener('click', () => {
+        toggleSettingsPanel(true);
+        setSettingsStatus('');
+        loadSettings();
+    });
+}
+
+if (closeSettingsBtn) {
+    closeSettingsBtn.addEventListener('click', () => toggleSettingsPanel(false));
+}
+
+if (cancelSettingsBtn) {
+    cancelSettingsBtn.addEventListener('click', () => toggleSettingsPanel(false));
+}
+
+if (settingsBackdrop) {
+    settingsBackdrop.addEventListener('click', () => toggleSettingsPanel(false));
+}
+
+if (settingsForm) {
+    settingsForm.addEventListener('submit', submitSettings);
+}
+
+if (fileManagerToggle) {
+    fileManagerToggle.addEventListener('click', () => {
+        fileManagerDrawer?.classList.toggle('open');
+    });
+}
+
+if (fileManagerClose) {
+    fileManagerClose.addEventListener('click', () => {
+        fileManagerDrawer?.classList.remove('open');
     });
 }
 

@@ -29,7 +29,7 @@ app.use(express.json());
 let activeToken: string | null = null;
 
 function ensureAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
-    const provided = req.header('X-CLAUDE-TOKEN');
+    const provided = req.header('X-CLAUDE-TOKEN') || String(req.query.token || '');
     if (activeToken && provided && provided === activeToken) {
         return next();
     }
