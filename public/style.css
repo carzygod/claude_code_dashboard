@@ -652,17 +652,16 @@ body {
 
 .file-manager-drawer {
     position: fixed;
-    top: 0;
-    right: 0;
+    inset: 0;
     height: 100%;
-    width: 320px;
-    max-width: 90vw;
+    width: 100vw;
     transform: translateX(100%);
     transition: transform 0.35s ease;
     z-index: 40;
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.65);
 }
 
 .file-manager-drawer.open {
@@ -708,14 +707,15 @@ body {
 }
 
 .drawer-content {
-    width: 100%;
+    width: min(960px, 100%);
     height: 100%;
-    background: rgba(15, 15, 22, 0.98);
-    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(8, 8, 15, 0.95);
+    border-radius: 0;
+    border-left: none;
     display: flex;
     flex-direction: column;
-    padding: 1rem;
-    box-shadow: -20px 0 50px rgba(0, 0, 0, 0.6);
+    padding: 1.5rem;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
 }
 
 .drawer-header {
@@ -738,6 +738,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    overflow-y: auto;
 }
 
 .file-manager-action-row {
