@@ -52,9 +52,6 @@ const settingsLink = document.getElementById('open-settings-link');
 const loginOverlay = document.getElementById('login-overlay');
 const loginForm = document.getElementById('login-form');
 const loginStatus = document.getElementById('login-status');
-const loginOverlay = document.getElementById('login-overlay');
-const loginForm = document.getElementById('login-form');
-const loginStatus = document.getElementById('login-status');
 const settingFields = [
     'ANTHROPIC_BASE_URL',
     'ANTHROPIC_AUTH_TOKEN',
